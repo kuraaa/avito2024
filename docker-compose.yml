@@ -1,11 +1,5 @@
 version: '3.8'
 
-networks:
-  avito-network:
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
-          gateway: 172.20.0.1
 
 services:
   avitoDb:
@@ -16,15 +10,13 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: dbname
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U user -d dbname"]
       interval: 10s
       retries: 5
       start_period: 30s
-      timeout: 10s
+      timeout: 3s
     ports:
       - "5432:5432"
-    networks:
-      - avito-network
     volumes:
       - './avito-postgres/local/postgre:/var/lib/postgresql/data/'
       - './avito-postgres/local/data:/data'
@@ -36,19 +28,19 @@ services:
     depends_on:
       avitoDb:
         condition: service_healthy
-    networks:
-      - avito-network
+    command: ["-path=/migrations", "-database=postgres://user:password@avitoDb:5432/dbname?sslmode=disable", "up"]
+
 
   app:
     build: .
     ports:
-      - "127.0.0.1:8080:8080"
+      - "8080:8080"
     depends_on:
       avitoDb:
         condition: service_healthy
     environment:
+      SERVER_ADDRESS: 0.0.0.0:8080
       POSTGRES_CONN: postgresql://user:password@avitoDb:5432/dbname?sslmode=disable
     volumes:
       - .env:/app/.env
-    networks:
-      - avito-network
+

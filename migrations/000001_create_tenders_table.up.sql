@@ -7,5 +7,6 @@ CREATE TABLE tenders (
     organization_id UUID NOT NULL,
     version INT NOT NULL,
     created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+    updated_at TIMESTAMP NOT NULL,
+    creator_username VARCHAR(100) NOT NULL
 );
