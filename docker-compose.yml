@@ -33,7 +33,6 @@ services:
     image: migrate/migrate:latest
     volumes:
       - ./migrations:/migrations
-      - ./wait-for-postgres.sh:/wait-for-postgres.sh
     depends_on:
       avitoDb:
         condition: service_healthy
