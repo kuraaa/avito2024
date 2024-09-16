@@ -15,6 +15,12 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: dbname
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
     ports:
       - "5432:5432"
     networks:
@@ -29,7 +35,8 @@ services:
       - ./migrations:/migrations
       - ./wait-for-postgres.sh:/wait-for-postgres.sh
     depends_on:
-      - avitoDb
+      avitoDb:
+        condition: service_healthy
     networks:
       - avito-network
 
@@ -38,7 +45,8 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
-      - avitoDb
+      avitoDb:
+        condition: service_healthy
     environment:
       POSTGRES_CONN: postgresql://user:password@avitoDb:5432/dbname?sslmode=disable
     volumes:
