@@ -1,28 +1,42 @@
-# Шаг сборки Go приложения
-FROM golang:1.20 AS build
+# Используем базовый образ Go
+FROM golang:1.23-alpine AS builder
 
+# Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируйте файлы go.mod и go.sum из директории backend
-COPY backend/go.mod backend/go.sum ./
+# Копируем файлы проекта
+COPY . .
 
-# Загружаем зависимости
+# Устанавливаем зависимости
 RUN go mod download
 
-# Копируйте остальные файлы проекта
-COPY backend/ .
+# Собираем приложение
+RUN go build -o main ./cmd/main.go
 
-# Соберите приложение Go
-RUN go build -o myapp .
+# Используем образ для выполнения миграций
+FROM migrate/migrate:latest AS migrator
 
-# Шаг выполнения: используйте тот же образ golang для совместимости библиотек
-FROM golang:1.20
+# Копируем миграции
+COPY --from=builder /app/migrations /migrations
 
-# Скопируйте собранное приложение из этапа сборки
-COPY --from=build /app/myapp /myapp
+# Копируем скрипт ожидания подключения к базе данных
+COPY wait-for-postgres.sh /wait-for-postgres.sh
+RUN chmod +x /wait-for-postgres.sh
 
-# Укажите порт, который будет прослушиваться
-EXPOSE 8080
+# Устанавливаем драйвер PostgreSQL
+RUN apk add --no-cache postgresql-client
 
-# Установите команду запуска контейнера
-CMD ["/myapp"]
+# Используем образ для запуска приложения
+FROM alpine:latest
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем собранное приложение
+COPY --from=builder /app/main .
+
+# Копируем файл .env
+COPY .env .
+
+# Команда для запуска приложения
+CMD ["./main"]

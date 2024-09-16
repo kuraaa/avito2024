@@ -1,32 +1,47 @@
 version: '3.8'
 
-services:
-  app:
-    image: your-go-app
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    depends_on:
-      - db
-    networks:
-      - app-network
-
-  db:
-    image: postgres:latest
-    environment:
-      POSTGRES_DB: yourdb
-      POSTGRES_USER: youruser
-      POSTGRES_PASSWORD: yourpassword
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - app-network
-
 networks:
-  app-network:
-    driver: bridge
+  avito-network:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
 
-volumes:
-  postgres-data:
+services:
+  avitoDb:
+    image: postgres:13
+    container_name: avitoDb
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
+    ports:
+      - "5432:5432"
+    networks:
+      - avito-network
+    volumes:
+      - './avito-postgres/local/postgre:/var/lib/postgresql/data/'
+      - './avito-postgres/local/data:/data'
+
+  migrator:
+    image: migrate/migrate:latest
+    volumes:
+      - ./migrations:/migrations
+      - ./wait-for-postgres.sh:/wait-for-postgres.sh
+    depends_on:
+      - avitoDb
+    networks:
+      - avito-network
+
+  app:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - avitoDb
+    environment:
+      POSTGRES_CONN: postgresql://user:password@avitoDb:5432/dbname?sslmode=disable
+    volumes:
+      - .env:/app/.env
+    networks:
+      - avito-network
